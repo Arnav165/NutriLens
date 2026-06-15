@@ -63,7 +63,7 @@ function renderHeader() {
   } else {
     btnToday.classList.remove('hidden');
   }
-  document.title = `${displayDate(currentDate)} · BetterCron`;
+  document.title = `${displayDate(currentDate)} · NutriLens`;
 }
 
 // ── Macro Summary ────────────────────────────────────────────────
