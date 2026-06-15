@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings · BetterCron</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="app-header">
+  <div class="container">
+    <div class="header-inner">
+      <h1>BetterCron</h1>
+      <span style="font-size:.9rem;font-weight:600">Settings</span>
+      <div></div>
+    </div>
+  </div>
+</header>
+
+<main style="padding:16px 0 8px">
+  <div class="container stack">
+
+
+    <div class="settings-section">
+      <h2>Data</h2>
+      <div class="settings-row">
+        <div class="settings-label">
+          <span>Export Data</span>
+          <small>Download all your logged meals as JSON</small>
+        </div>
+        <button id="btn-export" class="btn-ghost">Export</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">
+          <span>Clear All Data</span>
+          <small>Permanently delete all logged meals and goals</small>
+        </div>
+        <button id="btn-clear" class="btn-ghost" style="color:var(--danger);border-color:var(--danger)">Clear</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2>About</h2>
+      <div class="settings-row">
+        <div class="settings-label">
+          <span>BetterCron</span>
+          <small>Nutrition data from USDA FoodData Central. All data stored locally in your browser.</small>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<nav id="bottom-nav">
+  <a href="index.html" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+    Diary
+  </a>
+  <a href="goals.html" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+    </svg>
+    Goals
+  </a>
+  <a href="settings.html" class="nav-item active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+    Settings
+  </a>
+</nav>
+
+<script type="module">
+import { getSettings, setSettings } from './js/storage.js';
+
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const data = {
+    logs:     JSON.parse(localStorage.getItem('nutrition_logs')  || '{}'),
+    goals:    JSON.parse(localStorage.getItem('nutrition_goals') || '{}'),
+    exported: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `bettercron-export-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (!confirm('Delete ALL logged meals and goals? This cannot be undone.')) return;
+  localStorage.removeItem('nutrition_logs');
+  localStorage.removeItem('nutrition_goals');
+  showToast('All data cleared');
+});
+
+function showToast(msg) {
+  const existing = document.querySelector('.success-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'success-toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2100);
+}
+</script>
+</body>
+</html>

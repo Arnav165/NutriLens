@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Goals · BetterCron</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="app-header">
+  <div class="container">
+    <div class="header-inner">
+      <h1>BetterCron</h1>
+      <span style="font-size:.9rem;font-weight:600">Daily Goals</span>
+      <div style="display:flex;gap:8px">
+        <button id="btn-reset" class="btn-ghost" style="padding:6px 12px;font-size:.8rem">Reset defaults</button>
+        <button id="btn-save" class="btn-primary" style="padding:6px 14px;font-size:.8rem">Save</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main style="padding:16px 0 8px">
+  <div class="container stack" id="goals-container">
+    <!-- Rendered by JS -->
+  </div>
+</main>
+
+<nav id="bottom-nav">
+  <a href="index.html" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+    Diary
+  </a>
+  <a href="goals.html" class="nav-item active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+    </svg>
+    Goals
+  </a>
+  <a href="settings.html" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+    Settings
+  </a>
+</nav>
+
+<script type="module">
+import { NUTRIENT_META, DEFAULT_GOALS } from './js/nutrients.js';
+import { getGoals, setGoals } from './js/storage.js';
+
+const goals = getGoals();
+const container = document.getElementById('goals-container');
+
+const groups = [
+  { title: 'Macronutrients', ids: [1008, 1003, 1005, 1004, 1079] },
+  { title: 'Vitamins', ids: [1106, 1162, 1114, 1109, 1185, 1165, 1166, 1167, 1175, 1178, 1177] },
+  { title: 'Minerals', ids: [1087, 1089, 1090, 1092, 1093, 1095] },
+];
+
+for (const group of groups) {
+  const card = document.createElement('div');
+  card.className = 'card goals-group';
+
+  const title = document.createElement('div');
+  title.className = 'goals-group-title';
+  title.style.padding = '14px 16px 6px';
+  title.textContent = group.title;
+  card.appendChild(title);
+
+  for (const id of group.ids) {
+    const meta = NUTRIENT_META.find(n => n.id === id);
+    if (!meta) continue;
+
+    const row = document.createElement('div');
+    row.className = 'goal-row';
+    row.innerHTML = `
+      <span class="goal-name">${meta.name}</span>
+      <div class="goal-input-wrap">
+        <input class="goal-input" type="number" data-id="${id}" value="${goals[id] ?? meta.defaultGoal}" min="0" step="${meta.unit === 'kcal' ? 50 : meta.defaultGoal < 5 ? 0.1 : 1}">
+        <span class="goal-unit">${meta.unit}</span>
+      </div>`;
+    card.appendChild(row);
+  }
+
+  container.appendChild(card);
+}
+
+document.getElementById('btn-save').addEventListener('click', () => {
+  const inputs = document.querySelectorAll('.goal-input');
+  const newGoals = {};
+  inputs.forEach(input => {
+    const id  = parseInt(input.dataset.id);
+    const val = parseFloat(input.value);
+    if (!isNaN(val) && val > 0) newGoals[id] = val;
+  });
+  setGoals(newGoals);
+  showToast('Goals saved!');
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if (!confirm('Reset all goals to default values?')) return;
+  setGoals(DEFAULT_GOALS);
+  document.querySelectorAll('.goal-input').forEach(input => {
+    const meta = NUTRIENT_META.find(n => n.id === parseInt(input.dataset.id));
+    if (meta) input.value = meta.defaultGoal;
+  });
+  showToast('Goals reset to defaults');
+});
+
+function showToast(msg) {
+  const existing = document.querySelector('.success-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'success-toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2100);
+}
+</script>
+</body>
+</html>
