@@ -25,6 +25,8 @@ let abortController = null;
 
 // ── Scanner state ────────────────────────────────────────────────
 let barcodeDetector = null;
+let zxingReader     = null;
+let zxingControls   = null;
 let scanStream      = null;
 let scanAnimFrame   = null;
 
@@ -38,7 +40,6 @@ let creatingCustomFoodId = null;
   const params = new URLSearchParams(window.location.search);
   const dateParam = params.get('date');
   if (dateParam && isValidDate(dateParam)) currentDate = dateParam;
-  initBarcodeDetector();
   refresh();
   bindStaticEvents();
 })();
@@ -434,18 +435,28 @@ function bindStaticEvents() {
 
   document.getElementById('scan-file-input').addEventListener('change', async e => {
     const file = e.target.files[0];
-    if (!file || !barcodeDetector) return;
+    if (!file) return;
     try {
-      const bitmap = await createImageBitmap(file);
-      const barcodes = await barcodeDetector.detect(bitmap);
-      bitmap.close();
-      if (!barcodes.length) {
-        document.getElementById('scan-status').textContent = 'No barcode found in photo. Try again.';
-        return;
+      if (barcodeDetector) {
+        const bitmap = await createImageBitmap(file);
+        const barcodes = await barcodeDetector.detect(bitmap);
+        bitmap.close();
+        if (!barcodes.length) {
+          document.getElementById('scan-status').textContent = 'No barcode found in photo. Try again.';
+          return;
+        }
+        await handleBarcode(barcodes[0].rawValue);
+      } else if (zxingReader) {
+        const url = URL.createObjectURL(file);
+        try {
+          const result = await zxingReader.decodeFromImageUrl(url);
+          await handleBarcode(result.getText());
+        } finally {
+          URL.revokeObjectURL(url);
+        }
       }
-      await handleBarcode(barcodes[0].rawValue);
     } catch (err) {
-      document.getElementById('scan-status').textContent = `Error: ${err.message}`;
+      document.getElementById('scan-status').textContent = 'No barcode found in photo. Try again.';
     } finally {
       e.target.value = '';
     }
@@ -851,23 +862,33 @@ function showToast(msg) {
 }
 
 // ── Barcode Scanner ──────────────────────────────────────────────
-function initBarcodeDetector() {
-  if (!('BarcodeDetector' in window)) return;
+async function initBarcodeDetector() {
+  if ('BarcodeDetector' in window) {
+    try {
+      barcodeDetector = new BarcodeDetector({
+        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
+      });
+      return;
+    } catch { /* not supported */ }
+  }
+  // Fallback for iOS/browsers without native BarcodeDetector (e.g. Chrome on iPhone)
   try {
-    barcodeDetector = new BarcodeDetector({
-      formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
-    });
-  } catch { /* not supported */ }
+    const { BrowserMultiFormatReader } = await import('https://esm.sh/@zxing/browser@0.1.4');
+    zxingReader = new BrowserMultiFormatReader();
+  } catch { /* ZXing unavailable */ }
 }
 
 async function startScanner() {
+  // Lazy-init: only load detector/ZXing when user actually taps scan
+  if (!barcodeDetector && !zxingReader) await initBarcodeDetector();
+
   document.getElementById('search-step').style.display  = 'none';
   document.getElementById('scan-step').style.display    = 'flex';
   document.getElementById('scan-status').textContent    = 'Point camera at a barcode';
   document.getElementById('scan-manual-input').value    = '';
 
-  if (!barcodeDetector) {
-    document.getElementById('scan-status').textContent = 'Barcode scanning not supported in this browser. Please search manually.';
+  if (!barcodeDetector && !zxingReader) {
+    document.getElementById('scan-status').textContent = 'Barcode scanning not supported. Enter barcode manually below.';
     return;
   }
 
@@ -878,7 +899,18 @@ async function startScanner() {
     const video = document.getElementById('scan-video');
     video.srcObject = scanStream;
     await video.play();
-    scanFrames(video);
+
+    if (barcodeDetector) {
+      scanFrames(video);
+    } else {
+      // ZXing continuous scan from the live stream
+      zxingControls = await zxingReader.decodeFromStream(scanStream, video, (result, err) => {
+        if (result) {
+          stopScanner();
+          handleBarcode(result.getText());
+        }
+      });
+    }
   } catch {
     document.getElementById('scan-status').textContent = 'Camera unavailable. Take a photo instead.';
     document.getElementById('scan-file-label').style.display = 'flex';
@@ -900,6 +932,7 @@ async function scanFrames(video) {
 
 function stopScanner() {
   if (scanAnimFrame) { cancelAnimationFrame(scanAnimFrame); scanAnimFrame = null; }
+  if (zxingControls) { try { zxingControls.stop(); } catch {} zxingControls = null; }
   if (scanStream)    { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   const video = document.getElementById('scan-video');
   if (video) video.srcObject = null;
