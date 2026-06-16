@@ -4,7 +4,7 @@ import { scaleNutrients, computeDailyTotals, computeMealTotals, percentOfGoal, n
 import { todayStr, prevDay, nextDay, isValidDate, displayDate, longDisplayDate } from './dates.js';
 import { searchFoods, searchByBarcode, extractNutrients, foodDisplayName, foodBrand } from './usda.js';
 import { lookupBarcode, offProductToFood, parseServingGrams } from './openfoodfacts.js';
-import { extractNutritionLabel, labelDataToNutrients } from './gemini.js';
+import { extractNutritionLabel, labelDataToNutrients } from './groq.js';
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'];
 const MEAL_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snacks: 'Snacks' };
@@ -685,8 +685,8 @@ function confirmAdd() {
 
 // ── Label Scan (serving step) ────────────────────────────────────
 async function handleLabelScanForServing(file) {
-  const geminiKey = storage.getGeminiApiKey();
-  if (!geminiKey) {
+  const groqKey = storage.getGroqApiKey();
+  if (!groqKey) {
     showToast('Add your Gemini API key in Settings first');
     return;
   }
@@ -696,7 +696,7 @@ async function handleLabelScanForServing(file) {
 
   try {
     const { b64, mimeType } = await fileToBase64(file);
-    const labelData = await extractNutritionLabel(b64, mimeType, geminiKey);
+    const labelData = await extractNutritionLabel(b64, mimeType, groqKey);
     const nutrients = labelDataToNutrients(labelData);
 
     if (selectedFood) {
@@ -740,8 +740,8 @@ async function handleLabelScanForServing(file) {
 
 // ── Label Scan (create food step) ────────────────────────────────
 async function handleLabelScanForCreate(file) {
-  const geminiKey = storage.getGeminiApiKey();
-  if (!geminiKey) {
+  const groqKey = storage.getGroqApiKey();
+  if (!groqKey) {
     showToast('Add your Gemini API key in Settings first');
     return;
   }
@@ -752,7 +752,7 @@ async function handleLabelScanForCreate(file) {
 
   try {
     const { b64, mimeType } = await fileToBase64(file);
-    const labelData = await extractNutritionLabel(b64, mimeType, geminiKey);
+    const labelData = await extractNutritionLabel(b64, mimeType, groqKey);
     const nutrients = labelDataToNutrients(labelData);
     fillCreateFormFromNutrients(nutrients, labelData.serving_size_g);
     statusEl.textContent = '✓ Label read — review values below and save';

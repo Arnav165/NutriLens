@@ -83,8 +83,8 @@ export function getApiKey() {
   return getSettings().usdaApiKey || DEFAULT_USDA_KEY;
 }
 
-export function getGeminiApiKey() {
-  return getSettings().geminiApiKey || GROQ_API_KEY;
+export function getGroqApiKey() {
+  return getSettings().groqApiKey || GROQ_API_KEY;
 }
 
 const CUSTOM_FOODS_KEY = 'custom_foods';
